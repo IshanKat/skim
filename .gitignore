@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# Build
+build/
+dist/
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Data & artifacts (large; not committed)
+data/
+results/
+checkpoints/
+wandb/
+cache/
+*.pt
+*.ckpt
+*.bin
+*.npy
+*.npz
+
+# But keep dataset README stubs so the layout is documented
+!data/README.md
+!data/**/README.md
+
+# Pytest
+.pytest_cache/
+
+# Jupyter
+*.ipynb_checkpoints

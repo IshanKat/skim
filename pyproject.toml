@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "afs"
+version = "0.0.1"
+description = "Adaptive Frame Selection for Video QA via RL"
+requires-python = ">=3.10"
+authors = [
+    { name = "Ishan Katpally" },
+    { name = "Om Mahesh" },
+]
+
+dependencies = [
+    "torch>=2.4",
+    "transformers>=4.45",
+    "accelerate>=0.34",
+    "trl>=0.11",
+    "qwen-vl-utils>=0.0.8",
+    "av>=12.0",
+    "pillow>=10.0",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "einops>=0.8",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "bitsandbytes>=0.43",
+]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+    "ipykernel",
+    "matplotlib",
+    "wandb",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
