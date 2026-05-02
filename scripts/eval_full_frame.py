@@ -19,6 +19,7 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
+import torch
 from tqdm import tqdm
 
 from afs.data.nextqa import NExTQADataset
@@ -55,6 +56,7 @@ def main() -> int:
         device=cfg["device"],
         torch_dtype=cfg["model"]["torch_dtype"],
         load_in_4bit=cfg["model"]["load_in_4bit"],
+        max_pixels=cfg["model"].get("max_pixels"),
         fps=fps,
     ))
 
@@ -82,6 +84,7 @@ def main() -> int:
         per_group_total[sample.qtype_group] += 1
         per_group_correct[sample.qtype_group] += is_correct
         frame_counts.append(len(extracted.frames))
+        torch.cuda.empty_cache()
 
         predictions.append({
             "qid": sample.qid,

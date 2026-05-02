@@ -38,3 +38,6 @@ cache/
 
 # Jupyter
 *.ipynb_checkpoints
+
+NExTVideo.zip
+.claude

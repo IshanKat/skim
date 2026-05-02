@@ -6,6 +6,7 @@ model:
   load_in_4bit: true
   torch_dtype: bfloat16
   max_new_tokens: 16
+  max_pixels: 200704   # 256*28*28 — caps per-frame resolution for 8GB GPU
 
 data:
   benchmark: nextqa
@@ -23,6 +24,8 @@ selector:
   n_layers: 2
   dropout: 0.1
   action_dim: 3  # keep / skip / stop
+  d_vis: 1280    # Qwen2.5-VL-3B: vision encoder last_hidden_state dim
+  d_text: 2048   # Qwen2.5-VL-3B: LM hidden size
 
 env:
   horizon_is_video_len: true

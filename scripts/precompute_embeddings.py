@@ -50,6 +50,7 @@ def main() -> int:
         device=cfg["device"],
         torch_dtype=cfg["model"]["torch_dtype"],
         load_in_4bit=cfg["model"]["load_in_4bit"],
+        max_pixels=cfg["model"].get("max_pixels"),
         fps=fps,
     ))
     cache = EmbeddingCache(args.cache_dir, model_tag=wrapper.model_tag)

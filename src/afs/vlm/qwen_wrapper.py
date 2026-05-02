@@ -78,6 +78,20 @@ class QwenVLWrapper:
     def device(self) -> torch.device:
         return next(self.model.parameters()).device
 
+    @property
+    def d_text(self) -> int:
+        """Dimension of embeddings returned by encode_query."""
+        return self.model.config.text_config.hidden_size
+
+    @property
+    def d_vis(self) -> int:
+        """Dimension of embeddings returned by encode_frames_per_frame.
+
+        We extract from the vision encoder's last_hidden_state before the LM-space
+        projection, so d_vis == vision_config.hidden_size (1280 for Qwen2.5-VL-3B).
+        """
+        return self.model.config.vision_config.hidden_size
+
     def _compute_letter_token_ids(self) -> list[int]:
         tok = self.processor.tokenizer
         ids: list[int] = []
@@ -103,11 +117,12 @@ class QwenVLWrapper:
 
         outputs: list[torch.Tensor] = []
         for frame in frames:
-            inputs = self.processor(images=[frame], return_tensors="pt")
-            pixel_values = inputs["pixel_values"].to(self.device)
-            grid_thw = inputs["image_grid_thw"].to(self.device)
-            patches = self.model.visual(pixel_values, grid_thw=grid_thw)
-            pooled = patches.mean(dim=0)
+            img_inputs = self.processor.image_processor(images=[frame], return_tensors="pt")
+            pixel_values = img_inputs["pixel_values"].to(self.device)
+            grid_thw = img_inputs["image_grid_thw"].to(self.device)
+            out = self.model.model.visual(pixel_values, grid_thw=grid_thw)
+            hidden = out if isinstance(out, torch.Tensor) else out.last_hidden_state
+            pooled = hidden.mean(dim=0)
             outputs.append(pooled.float().cpu())
         return torch.stack(outputs, dim=0)
 
