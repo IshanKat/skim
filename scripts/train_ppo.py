@@ -40,6 +40,8 @@ def main() -> int:
     p.add_argument("--log-every",      type=int, default=1)
     p.add_argument("--limit",      type=int, default=None,
                    help="restrict dataset to first N samples (smoke test)")
+    p.add_argument("--fast-rollout", action="store_true", default=False,
+                   help="skip intermediate VLM calls during rollout (faster but no real entropy)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -95,7 +97,7 @@ def main() -> int:
         lambda_cost=env_cfg.get("lambda_cost", 0.1),
         step_penalty=env_cfg.get("step_penalty", 0.0),
         force_stop_at_end=env_cfg.get("force_stop_at_end", True),
-        fast_rollout=True,
+        fast_rollout=args.fast_rollout,
     )
 
     optimizer = torch.optim.AdamW(policy.parameters(), lr=ppo_cfg["lr"])

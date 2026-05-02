@@ -40,8 +40,8 @@ warmstart:
   lr: 1.0e-4
 
 ppo:
-  total_episodes: 20000
-  rollout_batch: 32
+  total_episodes: 8000
+  rollout_batch: 8
   ppo_epochs: 4
   lr: 3.0e-5
   kl_coef: 0.05
