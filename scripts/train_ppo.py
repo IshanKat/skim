@@ -42,6 +42,8 @@ def main() -> int:
                    help="restrict dataset to first N samples (smoke test)")
     p.add_argument("--fast-rollout", action="store_true", default=False,
                    help="skip intermediate VLM calls during rollout (faster but no real entropy)")
+    p.add_argument("--max-frames", type=int, default=None,
+                   help="override config data.max_frames (e.g. 8 for phase-1 training)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -51,7 +53,7 @@ def main() -> int:
     env_cfg   = cfg["env"]
     device    = cfg["device"]
     fps       = cfg["data"]["fps"]
-    max_frames = cfg["data"]["max_frames"]
+    max_frames = args.max_frames if args.max_frames is not None else cfg["data"]["max_frames"]
 
     total_episodes = args.total_episodes or ppo_cfg["total_episodes"]
     rollout_batch  = args.rollout_batch  or ppo_cfg["rollout_batch"]
