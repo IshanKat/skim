@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import time
 from collections import Counter
 from pathlib import Path
@@ -38,10 +37,8 @@ def run_policy_greedy(
     frame_embeddings: torch.Tensor,  # [N, D_vis]
     q_embed: torch.Tensor,           # [D_text]
     device: torch.device,
-    n_choices: int = 5,
 ) -> list[int]:
     """Run policy greedily (no VLM calls) and return indices of kept frames."""
-    max_entropy = math.log(n_choices)
     N = frame_embeddings.shape[0]
     kept_indices: list[int] = []
 
@@ -54,7 +51,7 @@ def run_policy_greedy(
             else torch.zeros(frame_embeddings.shape[1])
         )
         scalars = torch.tensor(
-            [max_entropy, step / max(N, 1), n_kept / max(N, 1)],
+            [step / max(N, 1), n_kept / max(N, 1)],
             dtype=torch.float32,
         )
 

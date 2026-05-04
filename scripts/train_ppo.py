@@ -40,10 +40,8 @@ def main() -> int:
     p.add_argument("--log-every",      type=int, default=1)
     p.add_argument("--limit",      type=int, default=None,
                    help="restrict dataset to first N samples (smoke test)")
-    p.add_argument("--fast-rollout", action="store_true", default=False,
-                   help="skip intermediate VLM calls during rollout (faster but no real entropy)")
     p.add_argument("--max-frames", type=int, default=None,
-                   help="override config data.max_frames (e.g. 8 for phase-1 training)")
+                   help="override config data.max_frames")
     args = p.parse_args()
 
     cfg = load_config(args.config)
@@ -86,6 +84,10 @@ def main() -> int:
     policy = SelectorPolicy.from_config(sel_cfg, d_vis=d_vis, d_text=d_text)
     if args.warmstart:
         state = torch.load(args.warmstart, map_location="cpu", weights_only=True)
+        # Migrate old 3-scalar checkpoint (with H_t) to 2-scalar (drop H_t column)
+        if "scalar_proj.weight" in state and state["scalar_proj.weight"].shape[1] == 3:
+            state["scalar_proj.weight"] = state["scalar_proj.weight"][:, 1:]
+            print("[ppo] Migrated scalar_proj weights: 3->2 inputs (dropped H_t column)")
         policy.load_state_dict(state)
         print(f"[ppo] Loaded warm-start from {args.warmstart}")
     policy = policy.to(device)
@@ -99,7 +101,6 @@ def main() -> int:
         lambda_cost=env_cfg.get("lambda_cost", 0.1),
         step_penalty=env_cfg.get("step_penalty", 0.0),
         force_stop_at_end=env_cfg.get("force_stop_at_end", True),
-        fast_rollout=args.fast_rollout,
     )
 
     optimizer = torch.optim.AdamW(policy.parameters(), lr=ppo_cfg["lr"])

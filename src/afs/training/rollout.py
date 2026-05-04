@@ -1,9 +1,8 @@
 """Rollout collection for PPO.
 
 One episode = one (video, question) pair processed frame-by-frame.
-In fast_rollout mode the env skips intermediate VLM calls; the only VLM
-forward pass is the terminal one used to compute the binary accuracy reward.
-This trades entropy accuracy for speed (critical on 8GB GPU).
+The VLM is called exactly once per episode at the terminal step to compute
+the accuracy reward.  No VLM calls happen during frame selection.
 """
 
 from __future__ import annotations
@@ -135,13 +134,11 @@ def collect_rollouts(
         idx = random.randrange(n) if indices is None else random.choice(indices)
         sample = dataset[idx]
 
-        print(f"[rollout] sample idx={idx} video={sample.video_id}", flush=True)
-
         cached = cache.get(sample.video_id, fps=fps, max_frames=max_frames)
         if cached is None:
             # Fall back to 32-frame cache and subsample to max_frames
             cached_full = cache.get(sample.video_id, fps=fps, max_frames=32)
-            if cached_full is not None and max_frames < 32:
+            if cached_full is not None and max_frames is not None and max_frames < 32:
                 N = cached_full.embeddings.shape[0]
                 n_keep = min(max_frames, N)
                 keep = np.linspace(0, N - 1, n_keep).round().astype(int)
@@ -156,21 +153,16 @@ def collect_rollouts(
                 cached = cached_full
 
         if cached is None or not sample.video_path.exists():
-            print(f"[rollout] skip: cache={cached is not None} path={sample.video_path.exists()}", flush=True)
             continue
 
         frame_embeddings = cached.embeddings  # [N, D_vis]
 
-        # Load actual frames for terminal VLM call (fast_rollout mode).
-        print(f"[rollout] extracting frames from {sample.video_path.name}", flush=True)
+        # Load actual frames for terminal VLM call.
         try:
             extracted = extract_frames(sample.video_path, fps=fps, max_frames=max_frames)
             frame_images = extracted.frames
-        except Exception as e:
-            print(f"[rollout] extract_frames failed: {e}", flush=True)
+        except Exception:
             continue
-
-        print(f"[rollout] {len(frame_images)} frames extracted, encoding query", flush=True)
 
         # Align frame count (cache and extractor may differ slightly).
         N = min(frame_embeddings.shape[0], len(frame_images))
@@ -179,7 +171,6 @@ def collect_rollouts(
 
         q_embed = wrapper.encode_query(sample.question)
 
-        print(f"[rollout] running episode (fast_rollout={env.fast_rollout})", flush=True)
         ep = run_episode(
             policy, env, sample,
             frame_embeddings, frame_images, q_embed,

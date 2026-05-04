@@ -4,7 +4,7 @@ At each step t the policy observes four things:
   - The query embedding (what question are we answering?)
   - The current frame embedding (what does this frame look like?)
   - The mean of all kept frame embeddings (what have we kept so far?)
-  - Three scalars: [H_t, t/N, |S|/N]
+  - Two scalars: [t/N, |S|/N]
 
 These become four tokens fed to a small transformer.  The output (mean-pooled)
 drives a 3-way action head (keep/skip/stop) and a scalar value head for PPO.
@@ -53,7 +53,7 @@ class SelectorPolicy(nn.Module):
         # Input projections — each source gets its own linear
         self.text_proj = nn.Linear(d_text, d_model)
         self.vis_proj = nn.Linear(d_vis, d_model)   # shared for frame + kept
-        self.scalar_proj = nn.Linear(3, d_model)    # [H_t, t/N, |S|/N]
+        self.scalar_proj = nn.Linear(2, d_model)    # [t/N, |S|/N]
 
         # Learned zero-token for the kept-set when no frames have been kept yet
         self.empty_kept_token = nn.Parameter(torch.zeros(d_model))
@@ -90,7 +90,7 @@ class SelectorPolicy(nn.Module):
         q_embed: torch.Tensor,      # [B, D_text]
         frame_embed: torch.Tensor,  # [B, D_vis]
         kept_embed: torch.Tensor,   # [B, D_vis]  (zeros when kept-set is empty)
-        scalars: torch.Tensor,      # [B, 3]
+        scalars: torch.Tensor,      # [B, 2]
         kept_empty: torch.Tensor | None = None,  # [B] bool — True when no frames kept
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass.

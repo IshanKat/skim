@@ -4,22 +4,12 @@ Trains the selector to imitate a fixed frame-selection strategy so that PPO
 starts from a non-random policy — critical for sparse-reward RL.
 
 Default target: uniform-k (evenly-spaced keep positions).  When FastV scores
-are available (Phase 5), pass them as ``scores`` to ``generate_targets`` to
-use importance-weighted selection instead.
-
-Entropy approximation during warm-start
-----------------------------------------
-Computing H_t at every KEEP step would require hundreds of full VLM forward
-passes per video, which is prohibitively slow.  During warm-start we set
-H_t = log(|choices|) (maximum entropy) for all steps — a conservative prior
-that lets the policy learn the spatial keep/skip pattern without needing
-accurate entropy estimates.  The PPO phase will teach the policy to exploit
-real entropy values.
+are available, pass them as ``scores`` to ``generate_targets`` to use
+importance-weighted selection instead.
 """
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Sequence
 
@@ -106,8 +96,6 @@ class WarmStartTrainer:
         Mini-batch size (number of (state, action) pairs per gradient step).
     device:
         Torch device for training.
-    n_choices:
-        Number of MC choices; used to compute max-entropy H approximation.
     """
 
     def __init__(
@@ -118,7 +106,6 @@ class WarmStartTrainer:
         epochs: int = 3,
         batch_size: int = 64,
         device: str | torch.device = "cpu",
-        n_choices: int = 5,
         max_frames: int | None = None,
     ) -> None:
         self.policy = policy
@@ -126,7 +113,6 @@ class WarmStartTrainer:
         self.epochs = epochs
         self.batch_size = batch_size
         self.device = torch.device(device)
-        self.max_entropy = math.log(n_choices)
         self.max_frames = max_frames
         self.optimizer = torch.optim.AdamW(policy.parameters(), lr=lr)
 
@@ -210,7 +196,6 @@ class WarmStartTrainer:
                     kept_embed = torch.zeros_like(frame_embed)
 
                 scalars = torch.tensor([
-                    self.max_entropy,          # H_t — conservative prior
                     t / max(N, 1),             # t/N
                     n_kept / max(N, 1),        # |S|/N
                 ], dtype=torch.float32)
