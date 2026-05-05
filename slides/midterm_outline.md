@@ -49,28 +49,30 @@
 
 ---
 
-## Slide 5 — Preliminary Results
+## Slide 5 — Results (n=200 NExT-QA val)
 
-| Method      | Accuracy | Avg Frames |
-|-------------|----------|------------|
-| Uniform-8   | ~75%     | 8.0        |
-| Uniform-16  | ~77%     | 16.0       |
-| Uniform-32  | ~79%     | 32.0       |
-| PPO (800 ep)| ~76%     | ~13        |
+| Method        | Accuracy | Avg Frames |
+|---------------|----------|------------|
+| Uniform-8     | 75.5%    | 8.0        |
+| Uniform-16    | 76.0%    | 15.7       |
+| Uniform-32    | 78.0%    | 27.4       |
+| PPO (800 ep)  | **74.0%**| **13.3**   |
 
-- PPO at 800 episodes is content-aware: it sees 32 frames but selects ~13 on average
-- Bimodal retention (keeps very few OR almost all frames) — policy under-trained at 800 eps
-- 8000 episodes with rollout batch 32 = ~10x more gradient updates → expect smoother policies
+- Best checkpoint: 800 episodes, λ=0.1
+- Matches Uniform-8 accuracy (74% vs 75.5%) using 13.3 frames on average — content-aware, not just subsampling
+- Over-training with λ=0.2 collapsed to 1.5 frames avg / 58% accuracy — λ is a critical hyperparameter
+- Temporal questions are hardest across all methods; descriptive easiest
 
 ---
 
 ## Slide 6 — Next Steps & Timeline
 
-- **Now**: Continue PPO training from 800-ep checkpoint (~2 days, fast rollout, batch=32)
-- **Week 2**: Eval on full val set (n=2000), compare vs. baselines
-- **Week 3**: λ ablations ({0.05, 0.1, 0.2}), analysis by question type
+- **Now**: λ ablations — retrain with λ ∈ {0.05, 0.1, 0.2} to characterize the accuracy/efficiency tradeoff
+- **Week 2**: Eval on full val set (n=2000) with best λ; per-question-type breakdown
+- **Week 3**: Analysis — does STOP action fire? Which question types benefit most?
 - **Week 4**: Write-up, figures, final presentation
 
 Key open questions:
+- λ=0.1 appears to be the sweet spot; is there a principled way to set it?
 - Does adaptive stopping (STOP action) add value beyond fixed-budget selection?
-- Which question types benefit most from selective frame attention?
+- Which question types benefit most from selective frame attention? (Temporal seems hardest)

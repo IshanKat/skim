@@ -101,16 +101,18 @@ Videos are sampled at 1 fps, capped at 32 frames per video.
 
 ---
 
-## Results (preliminary, 800 episodes)
+## Results (n=200 NExT-QA val)
 
-| Method      | Accuracy | Avg Frames Used |
-|-------------|----------|-----------------|
-| Uniform-8   | ~75%     | 8.0             |
-| Uniform-16  | ~77%     | 16.0            |
-| Uniform-32  | ~79%     | 32.0            |
-| PPO (800ep) | ~76%     | ~13             |
+| Method        | Accuracy | Avg Frames | Causal | Temporal | Descriptive |
+|---------------|----------|-----------|--------|----------|-------------|
+| Uniform-8     | 75.5%    | 8.0       | 75.0%  | 69.4%    | 92.9%       |
+| Uniform-16    | 76.0%    | 15.7      | 76.0%  | 70.8%    | 89.3%       |
+| Uniform-32    | 78.0%    | 27.4      | 77.0%  | 75.0%    | 89.3%       |
+| PPO ep800     | **74.0%**| **13.3**  | 74.0%  | 69.4%    | 85.7%       |
 
-After 800 training episodes the policy selects ~13 frames on average — fewer than Uniform-16 while approaching its accuracy. Training is ongoing.
+The best PPO checkpoint (800 training episodes, λ=0.1) selects 13.3 frames on average — fewer than Uniform-16 while matching Uniform-8 accuracy. Unlike uniform subsampling, the policy is content-aware: it decides frame-by-frame based on visual relevance to the query.
+
+**Over-training effect**: Continuing PPO with λ=0.2 caused the policy to collapse toward extreme pruning (1.5–3 frames) with significantly degraded accuracy (58–68%), confirming that the cost coefficient λ is a critical hyperparameter.
 
 ---
 

@@ -41,11 +41,11 @@ warmstart:
 
 ppo:
   total_episodes: 8000
-  rollout_batch: 8
+  rollout_batch: 32
   ppo_epochs: 4
   lr: 3.0e-5
   kl_coef: 0.05
-  entropy_coef: 0.01
+  entropy_coef: 0.03
   clip_range: 0.2
   gae_lambda: 0.95
   gamma: 1.0

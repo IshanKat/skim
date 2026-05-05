@@ -114,6 +114,9 @@ def main() -> int:
 
     policy = SelectorPolicy.from_config(sel_cfg, d_vis=d_vis, d_text=d_text)
     state = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+    if "scalar_proj.weight" in state and state["scalar_proj.weight"].shape[1] == 3:
+        state["scalar_proj.weight"] = state["scalar_proj.weight"][:, 1:]
+        print("[eval_ppo] Migrated scalar_proj weights: 3->2 inputs (dropped H_t column)")
     policy.load_state_dict(state)
     policy = policy.to(device)
     policy.eval()
