@@ -1,0 +1,4 @@
+[ppo] Migrated scalar_proj weights: 3->2 inputs (dropped H_t column)
+[ppo] Loaded warm-start from checkpoints/ppo/ppo_ep000800.pt
+[ppo] policy params: 8,015,876
+[ppo] total_episodes=8000, rollout_batch=32

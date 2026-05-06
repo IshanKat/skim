@@ -2,12 +2,13 @@
 
 ---
 
+## Title: Learning to Select and Stop: Efficient Video QA via Reinforcement Learning
+
 ## Slide 1 — Motivation & Problem
 
 - Video QA is expensive: VLMs process all frames even when most are redundant
+- Current frame selectors don't account for the possibility of finding a good subset of frames early on
 - Hook: "Can a lightweight policy learn *which* frames to show the VLM — and when to stop?"
-- Research question: train an RL agent to adaptively select frames, balancing accuracy vs. compute
-- Teaser: our policy matches Uniform-16 accuracy while being content-aware
 
 ---
 
@@ -19,7 +20,8 @@
   - **Actions**: KEEP / SKIP / STOP
   - **Reward** (terminal only): 1[correct] − λ · |S|/N
 - Why RL: no ground-truth labels for "optimal frame subset"; reward comes from answer correctness
-- Key property: VLM is called **exactly once per episode** (at the terminal step) — the selector operates using only visual features and temporal context
+- VLM is called **exactly once per episode** (at the terminal step) — the selector operates using only visual features and temporal context
+- Key novelty is introducing the option for early stoppage
 
 ---
 
@@ -39,9 +41,9 @@
 
 ## Slide 4 — Training Pipeline
 
-- **Phase 0 — Warm-start** (complete): behavioral cloning to imitate uniform frame selection
+- **Warm-start**: behavioral cloning to imitate uniform frame selection
   - Gives the policy a sensible prior before RL; prevents early reward collapse
-- **Phase 1 — PPO** (in progress):
+- **PPO Training**:
   - 8000 episodes, rollout batch 32, AdamW lr=3e-5
   - KL penalty against the warm-start reference policy to prevent catastrophic forgetting
   - GAE advantage estimation (γ=1.0, λ=0.95), entropy bonus for exploration
@@ -49,30 +51,32 @@
 
 ---
 
-## Slide 5 — Results (n=200 NExT-QA val)
+## Slide 5 — Preliminary Results (n=200 NExT-QA val)
 
-| Method        | Accuracy | Avg Frames |
-|---------------|----------|------------|
-| Uniform-8     | 75.5%    | 8.0        |
-| Uniform-16    | 76.0%    | 15.7       |
-| Uniform-32    | 78.0%    | 27.4       |
-| PPO (800 ep)  | **74.0%**| **13.3**   |
+| Method              | Accuracy | Avg Frames | Causal | Temporal | Descriptive |
+|---------------------|----------|-----------|--------|----------|-------------|
+| Uniform-8           | 75.5%    | 8.0       | 75.0%  | 69.4%    | 92.9%       |
+| Uniform-16          | 76.0%    | 15.7      | 76.0%  | 70.8%    | 89.3%       |
+| Uniform-32          | 78.0%    | 27.4      | 77.0%  | 75.0%    | 89.3%       |
+| PPO ep800 (λ=0.1)   | **74.0%**| **13.3**  | 74.0%  | 69.4%    | 85.7%       |
+| PPO ep2528 (λ=0.2)  | 68.0%    | 3.0       | 69.0%  | 59.7%    | 85.7%       |
+| PPO final (λ=0.2)   | 58.5%    | 1.5       | 57.0%  | 54.2%    | 75.0%       |
 
-- Best checkpoint: 800 episodes, λ=0.1
-- Matches Uniform-8 accuracy (74% vs 75.5%) using 13.3 frames on average — content-aware, not just subsampling
-- Over-training with λ=0.2 collapsed to 1.5 frames avg / 58% accuracy — λ is a critical hyperparameter
-- Temporal questions are hardest across all methods; descriptive easiest
+**λ ablation findings:**
+- λ=0.2 (ep2528 → final): policy learned a degenerate STOP-immediately strategy
+  - By final checkpoint: 26% of episodes had 0 frames kept (STOP fired before any KEEP)
+  - 0-frame episodes score ~40% accuracy — double random chance (20%) via VLM language prior alone
+  - 1-frame episodes dominate (62%), netting 65% accuracy — worse than just asking the VLM with 8 frames
+- Temporal questions hardest across all methods; descriptive easiest
 
 ---
 
-## Slide 6 — Next Steps & Timeline
+## Slide 6 — Next Steps
 
-- **Now**: λ ablations — retrain with λ ∈ {0.05, 0.1, 0.2} to characterize the accuracy/efficiency tradeoff
-- **Week 2**: Eval on full val set (n=2000) with best λ; per-question-type breakdown
-- **Week 3**: Analysis — does STOP action fire? Which question types benefit most?
-- **Week 4**: Write-up, figures, final presentation
+- λ ablations — retrain with λ ∈ {0.05, 0.1, 0.2} to characterize the accuracy/efficiency tradeoff
+- Eval on full val set (n=2000) with best λ; per-question-type breakdown
+- Analysis — does STOP action fire? Which question types benefit most?
 
 Key open questions:
-- λ=0.1 appears to be the sweet spot; is there a principled way to set it?
 - Does adaptive stopping (STOP action) add value beyond fixed-budget selection?
 - Which question types benefit most from selective frame attention? (Temporal seems hardest)
