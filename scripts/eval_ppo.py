@@ -1,5 +1,6 @@
-"""Phase 5: Evaluate the PPO-trained selector policy on NExT-QA val.
+"""Phase 5: Evaluate the PPO-trained selector policy.
 
+Supports NExT-QA, IntentQA, and EgoSchema via --dataset.
 Runs the policy greedily (argmax) over each video, collects the kept frames,
 then calls the VLM once per question to get the final answer.
 
@@ -7,8 +8,20 @@ Usage:
     python scripts/eval_ppo.py \\
         --config configs/default.yaml \\
         --checkpoint checkpoints/ppo/ppo_final.pt \\
-        --cache-dir cache/embeddings \\
+        --dataset nextqa \\
         --output results/ppo_val.json
+
+    python scripts/eval_ppo.py \\
+        --config configs/default.yaml \\
+        --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt \\
+        --dataset intentqa --data-root data/intentqa \\
+        --output results/ppo_intentqa.json
+
+    python scripts/eval_ppo.py \\
+        --config configs/default.yaml \\
+        --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt \\
+        --dataset egoschema --data-root data/egoschema \\
+        --output results/ppo_egoschema.json
 """
 
 from __future__ import annotations
@@ -24,11 +37,50 @@ import torch
 from tqdm import tqdm
 
 from afs.data.nextqa import NExTQADataset
+from afs.data.intentqa import IntentQADataset
+from afs.data.egoschema import EgoSchemaDataset
 from afs.selector.policy import SelectorPolicy
 from afs.utils.config import load_config
 from afs.vlm.cache import EmbeddingCache
 from afs.vlm.frames import ExtractedFrames, extract_frames
 from afs.vlm.qwen_wrapper import QwenVLConfig, QwenVLWrapper
+
+
+def load_dataset(args, cfg):
+    """Return the appropriate dataset based on --dataset."""
+    name = args.dataset
+    root = args.data_root
+
+    if name == "nextqa":
+        split = args.split or cfg["data"]["split"]
+        return NExTQADataset(
+            root=root or cfg["data"]["root"],
+            split=split,
+            csv_file=cfg["data"].get("csv_file"),
+            map_file=cfg["data"].get("map_file", "map_vid_vidorID.json"),
+            video_dir=cfg["data"].get("video_dir", "videos"),
+        ), split
+
+    if name == "intentqa":
+        if not root:
+            raise ValueError("--data-root required for IntentQA")
+        return IntentQADataset(
+            root=root,
+            json_file=args.json_file or "val.json",
+            map_file=args.map_file or "map_vid_vidorID.json",
+            video_dir=args.video_dir or "videos",
+        ), "val"
+
+    if name == "egoschema":
+        if not root:
+            raise ValueError("--data-root required for EgoSchema")
+        return EgoSchemaDataset(
+            root=root,
+            json_file=args.json_file or "subset_answers.json",
+            video_dir=args.video_dir or "videos",
+        ), "subset"
+
+    raise ValueError(f"Unknown dataset: {name!r}. Choose from nextqa, intentqa, egoschema")
 
 
 @torch.no_grad()
@@ -79,25 +131,28 @@ def main() -> int:
     p.add_argument("--checkpoint",  default="checkpoints/ppo/ppo_final.pt")
     p.add_argument("--cache-dir",   default="cache/embeddings")
     p.add_argument("--output",      default="results/ppo_val.json")
+    p.add_argument("--dataset",     default="nextqa",
+                   choices=["nextqa", "intentqa", "egoschema"])
+    p.add_argument("--data-root",   default=None,
+                   help="dataset root dir (overrides config for nextqa; required for others)")
+    p.add_argument("--json-file",   default=None,
+                   help="annotation JSON filename (intentqa/egoschema)")
+    p.add_argument("--map-file",    default=None,
+                   help="video-id map JSON filename (intentqa)")
+    p.add_argument("--video-dir",   default=None,
+                   help="video subdirectory name")
     p.add_argument("--split",       default=None)
     p.add_argument("--limit",       type=int, default=None,
                    help="evaluate only the first N samples (smoke test)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
-    split     = args.split or cfg["data"]["split"]
     sel_cfg   = cfg["selector"]
     device    = cfg["device"]
     fps       = cfg["data"]["fps"]
     max_frames = cfg["data"]["max_frames"]
 
-    ds = NExTQADataset(
-        root=cfg["data"]["root"],
-        split=split,
-        csv_file=cfg["data"].get("csv_file"),
-        map_file=cfg["data"].get("map_file", "map_vid_vidorID.json"),
-        video_dir=cfg["data"].get("video_dir", "videos"),
-    )
+    ds, split = load_dataset(args, cfg)
 
     wrapper = QwenVLWrapper(QwenVLConfig(
         model_name=cfg["model"]["name"],
@@ -193,6 +248,7 @@ def main() -> int:
 
     summary = {
         "method": "ppo",
+        "dataset": args.dataset,
         "checkpoint": args.checkpoint,
         "model": wrapper.model_tag,
         "split": split,

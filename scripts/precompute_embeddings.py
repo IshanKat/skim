@@ -1,13 +1,18 @@
-"""Precompute per-frame Qwen2.5-VL vision embeddings for every NExT-QA video
-and cache them to disk. Subsequent PPO rollouts read from the cache instead of
-re-encoding, which is the single biggest training throughput knob.
+"""Precompute per-frame Qwen2.5-VL vision embeddings and cache to disk.
+
+Supports NExT-QA, IntentQA, and EgoSchema. Skips videos that already have a
+cache entry for the given (model, fps, max_frames).
 
 Usage:
+    python scripts/precompute_embeddings.py --config configs/default.yaml
+
     python scripts/precompute_embeddings.py \
         --config configs/default.yaml \
-        --cache-dir cache/embeddings
+        --dataset intentqa --data-root data/intentqa
 
-Skips videos that already have a cache entry for the given (model, fps, max_frames).
+    python scripts/precompute_embeddings.py \
+        --config configs/default.yaml \
+        --dataset egoschema --data-root data/egoschema
 """
 
 from __future__ import annotations
@@ -18,32 +23,61 @@ from pathlib import Path
 from tqdm import tqdm
 
 from afs.data.nextqa import NExTQADataset
+from afs.data.intentqa import IntentQADataset
+from afs.data.egoschema import EgoSchemaDataset
 from afs.utils.config import load_config
 from afs.vlm.cache import EmbeddingCache
 from afs.vlm.frames import extract_frames
 from afs.vlm.qwen_wrapper import QwenVLConfig, QwenVLWrapper
 
 
+def load_dataset(args, cfg):
+    name = args.dataset
+    root = args.data_root
+    if name == "nextqa":
+        split = args.split or cfg["data"]["split"]
+        return NExTQADataset(
+            root=root or cfg["data"]["root"],
+            split=split,
+            csv_file=cfg["data"].get("csv_file"),
+            map_file=cfg["data"].get("map_file", "map_vid_vidorID.json"),
+            video_dir=cfg["data"].get("video_dir", "videos"),
+        )
+    if name == "intentqa":
+        return IntentQADataset(
+            root=root,
+            json_file=args.json_file or "val.json",
+            map_file=args.map_file or "map_vid_vidorID.json",
+            video_dir=args.video_dir or "videos",
+        )
+    if name == "egoschema":
+        return EgoSchemaDataset(
+            root=root,
+            json_file=args.json_file or "subset_answers.json",
+            video_dir=args.video_dir or "videos",
+        )
+    raise ValueError(f"Unknown dataset: {name!r}")
+
+
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--config", default="configs/default.yaml")
+    p.add_argument("--config",    default="configs/default.yaml")
     p.add_argument("--cache-dir", default="cache/embeddings")
-    p.add_argument("--split", default=None, help="override config data.split")
-    p.add_argument("--limit", type=int, default=None, help="cap videos (smoke tests)")
+    p.add_argument("--dataset",   default="nextqa",
+                   choices=["nextqa", "intentqa", "egoschema"])
+    p.add_argument("--data-root", default=None)
+    p.add_argument("--json-file", default=None)
+    p.add_argument("--map-file",  default=None)
+    p.add_argument("--video-dir", default=None)
+    p.add_argument("--split",     default=None, help="override config data.split")
+    p.add_argument("--limit",     type=int, default=None, help="cap videos (smoke tests)")
     args = p.parse_args()
 
     cfg = load_config(args.config)
-    split = args.split or cfg["data"]["split"]
     fps = cfg["data"]["fps"]
     max_frames = cfg["data"]["max_frames"]
 
-    ds = NExTQADataset(
-        root=cfg["data"]["root"],
-        split=split,
-        csv_file=cfg["data"].get("csv_file"),
-        map_file=cfg["data"].get("map_file", "map_vid_vidorID.json"),
-        video_dir=cfg["data"].get("video_dir", "videos"),
-    )
+    ds = load_dataset(args, cfg)
 
     wrapper = QwenVLWrapper(QwenVLConfig(
         model_name=cfg["model"]["name"],
