@@ -19,8 +19,7 @@ dist/
 
 # Data & artifacts (large; not committed)
 /data/
-results/
-checkpoints/
+/checkpoints/
 wandb/
 cache/
 *.pt
@@ -28,6 +27,9 @@ cache/
 *.bin
 *.npy
 *.npz
+
+# Keep results JSON for paper
+!/results/*.json
 
 # But keep dataset README stubs so the layout is documented
 !data/README.md

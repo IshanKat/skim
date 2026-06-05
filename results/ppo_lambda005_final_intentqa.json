@@ -1,0 +1,15 @@
+{
+  "summary": {
+    "method": "ppo",
+    "dataset": "intentqa",
+    "checkpoint": "checkpoints/ppo_lambda005/ppo_final.pt",
+    "model": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "split": "val",
+    "n": 0,
+    "accuracy": 0.0,
+    "accuracy_by_group": {},
+    "avg_frames": 0.0,
+    "elapsed_seconds": 0.07054710388183594
+  },
+  "predictions": []
+}

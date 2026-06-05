@@ -46,7 +46,7 @@ def load_dataset(args, cfg):
     if name == "intentqa":
         return IntentQADataset(
             root=root,
-            json_file=args.json_file or "val.json",
+            csv_file=args.json_file or "val.csv",
             map_file=args.map_file or "map_vid_vidorID.json",
             video_dir=args.video_dir or "videos",
         )

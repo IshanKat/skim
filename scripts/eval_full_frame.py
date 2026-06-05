@@ -23,33 +23,47 @@ import torch
 from tqdm import tqdm
 
 from afs.data.nextqa import NExTQADataset
+from afs.data.intentqa import IntentQADataset
 from afs.utils.config import load_config
 from afs.vlm.frames import extract_frames
 from afs.vlm.qwen_wrapper import QwenVLConfig, QwenVLWrapper
 
 
-def main() -> int:
-    p = argparse.ArgumentParser()
-    p.add_argument("--config", default="configs/default.yaml")
-    p.add_argument("--split", default=None)
-    p.add_argument("--output", default="results/full_frame_val.json")
-    p.add_argument("--max-frames", type=int, default=None,
-                   help="override config data.max_frames (e.g. 32 for upper bound)")
-    p.add_argument("--limit", type=int, default=None)
-    args = p.parse_args()
-
-    cfg = load_config(args.config)
+def load_dataset(args, cfg):
+    if args.dataset == "intentqa":
+        return IntentQADataset(
+            root=args.data_root,
+            csv_file=args.csv_file or "val.csv",
+            map_file="map_vid_vidorID.json",
+            video_dir="videos",
+        ), "val"
     split = args.split or cfg["data"]["split"]
-    fps = cfg["data"]["fps"]
-    max_frames = args.max_frames if args.max_frames is not None else cfg["data"]["max_frames"]
-
-    ds = NExTQADataset(
-        root=cfg["data"]["root"],
+    return NExTQADataset(
+        root=args.data_root or cfg["data"]["root"],
         split=split,
         csv_file=cfg["data"].get("csv_file"),
         map_file=cfg["data"].get("map_file", "map_vid_vidorID.json"),
         video_dir=cfg["data"].get("video_dir", "videos"),
-    )
+    ), split
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--config",     default="configs/default.yaml")
+    p.add_argument("--dataset",    default="nextqa", choices=["nextqa", "intentqa"])
+    p.add_argument("--data-root",  default=None)
+    p.add_argument("--csv-file",   default=None)
+    p.add_argument("--split",      default=None)
+    p.add_argument("--output",     default="results/full_frame_val.json")
+    p.add_argument("--max-frames", type=int, default=None)
+    p.add_argument("--limit",      type=int, default=None)
+    args = p.parse_args()
+
+    cfg = load_config(args.config)
+    fps = cfg["data"]["fps"]
+    max_frames = args.max_frames if args.max_frames is not None else cfg["data"]["max_frames"]
+
+    ds, split = load_dataset(args, cfg)
 
     wrapper = QwenVLWrapper(QwenVLConfig(
         model_name=cfg["model"]["name"],
@@ -109,6 +123,7 @@ def main() -> int:
 
     summary = {
         "method": "full_frame",
+        "dataset": args.dataset,
         "model": cfg["model"]["name"],
         "split": split,
         "max_frames": max_frames,

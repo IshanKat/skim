@@ -3,25 +3,15 @@
 IntentQA shares videos with NExT-QA (both use VidOR), so you can point
 video_dir and map_file at the same paths as NExT-QA.
 
-Expected annotation file format (JSON):
-    [
-      {
-        "video_name": "7678",
-        "qid": 1,
-        "type": "CW",
-        "question": "Why did ...",
-        "a0": "...", "a1": "...", "a2": "...", "a3": "...", "a4": "...",
-        "answer": 2
-      },
-      ...
-    ]
+Expected annotation file: val.csv with columns:
+    video_id, question, answer, qid, type, a0, a1, a2, a3, a4, ...
 
 Download annotations from: https://github.com/JoseponLee/IntentQA
 """
 
 from __future__ import annotations
 
-import json
+import csv
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -56,10 +46,10 @@ class IntentQADataset:
     Parameters
     ----------
     root:
-        Directory containing the JSON annotation file, the video-id map JSON,
+        Directory containing the CSV annotation file, the video-id map JSON,
         and the videos subdirectory (same layout as NExT-QA).
-    json_file:
-        Annotation JSON filename relative to root. Defaults to ``"val.json"``.
+    csv_file:
+        Annotation CSV filename relative to root. Defaults to ``"val.csv"``.
     map_file:
         JSON mapping video_id -> vidor_id. Same file as NExT-QA.
         Defaults to ``"map_vid_vidorID.json"``.
@@ -70,21 +60,19 @@ class IntentQADataset:
     def __init__(
         self,
         root: str | Path,
-        json_file: str = "val.json",
+        csv_file: str = "val.csv",
         *,
         map_file: str = "map_vid_vidorID.json",
         video_dir: str = "videos",
     ) -> None:
+        import json
         self._root = Path(root)
-        ann_path = self._root / json_file
+        ann_path = self._root / csv_file
         map_path = self._root / map_file
         self._video_dir = self._root / video_dir
 
         if not ann_path.exists():
             raise FileNotFoundError(f"IntentQA annotation not found: {ann_path}")
-
-        with open(ann_path) as f:
-            entries = json.load(f)
 
         vid_map: dict[str, str] = {}
         if map_path.exists():
@@ -92,22 +80,23 @@ class IntentQADataset:
                 vid_map = json.load(f)
 
         self._samples: list[IntentQASample] = []
-        for row in entries:
-            vid_id = str(row["video_name"])
-            vidor_id = vid_map.get(vid_id, vid_id)
-            video_path = self._video_dir / f"{vidor_id}.mp4"
-            choices = tuple(str(row[f"a{i}"]) for i in range(5))
-            qtype = str(row.get("type", ""))
-            self._samples.append(IntentQASample(
-                qid=str(row["qid"]),
-                video_id=vid_id,
-                video_path=video_path,
-                question=str(row["question"]),
-                choices=choices,
-                answer_idx=int(row["answer"]),
-                qtype=qtype,
-                qtype_group=_qtype_group(qtype),
-            ))
+        with open(ann_path, newline="", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                vid_id = str(row["video_id"])
+                vidor_id = vid_map.get(vid_id, vid_id)
+                video_path = self._video_dir / f"{vidor_id}.mp4"
+                choices = tuple(str(row[f"a{i}"]) for i in range(5))
+                qtype = str(row.get("type", ""))
+                self._samples.append(IntentQASample(
+                    qid=str(row["qid"]),
+                    video_id=vid_id,
+                    video_path=video_path,
+                    question=str(row["question"]),
+                    choices=choices,
+                    answer_idx=int(row["answer"]),
+                    qtype=qtype,
+                    qtype_group=_qtype_group(qtype),
+                ))
 
     def __len__(self) -> int:
         return len(self._samples)
