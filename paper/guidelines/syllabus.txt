@@ -1,0 +1,2 @@
+Final Report Format
+You must use the NeurIPS 2026 LaTeX style filesLinks to an external site. for writing the report. The final report must be 4-6 pages long excluding references. It is encouraged to include the following components in your reports (not necessarily this order): abstract, introduction (motivation, task definition, your novel contributions), related work, your technical approach, such as math formulation of the problem, algorithms, theorems (if any), experiments, discussion, and conclusion.
