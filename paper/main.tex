@@ -42,16 +42,21 @@ is blind to which frames a question needs. We present \textbf{SKIM}, a lightweig
 ($8$M-parameter) reinforcement-learning policy that scans a video frame by frame and
 decides, at each step, whether to \textsc{keep} the frame, \textsc{skip} it, or
 \textsc{stop} and answer, passing only the kept subset to a \emph{frozen} VLM queried
-once per question. The policy runs on pre-cached embeddings (one VLM call per episode,
-so PPO trains on a single $8$\,GB GPU), is \emph{causal} (its state never depends on
-future frames, making it streaming-compatible), and uses a learned \textsc{stop} with a
-cost-aware reward to set a per-question \emph{variable} budget---a combination that
-concurrent RL frame selectors, which are offline and fixed-budget, do not share. On
-NExT-QA, SKIM matches Uniform-16 accuracy ($76.0\%$) using fewer frames ($14.0$ vs.\
-$15.7$); a single coefficient $\lambda$ trades accuracy for frames; and the policy
-transfers zero-shot to IntentQA. We also analyze how it fails: under a strong frame
-penalty it reward-hacks, stopping with near-zero frames and answering from the VLM's
-language prior.
+once per question. The policy is \emph{causal} (state depends only on frames seen so
+far, enabling streaming deployment), trains on pre-cached embeddings with one VLM call
+per episode (PPO on a single $8$\,GB GPU), and uses a cost-aware reward to set a
+per-question \emph{variable} budget---a combination concurrent RL selectors, which are
+offline and fixed-budget, do not share. We position this work as an empirical
+characterization of causal RL frame selection rather than a claim to outperform the
+uniform accuracy frontier. Our main findings: \textbf{(1)}~SKIM matches LVNet ($72.9\%$,
+$12$ frames) at $72.3\%$ and $14.2$ frames while adding causal and variable-budget
+properties LVNet lacks; \textbf{(2)}~the policy's stopping behavior is bimodal---it
+either fires \textsc{stop} near frame zero or runs to the end, not the fine-grained
+per-frame selection one might expect; \textbf{(3)}~a single coefficient $\lambda$
+controls the accuracy--efficiency tradeoff but is brittle: too large, and the policy
+collapses to near-zero frames and answers from the VLM's language prior; and
+\textbf{(4)}~the policy transfers zero-shot to IntentQA with consistent behavior,
+confirming that what it learns generalizes across benchmarks.
 \end{abstract}
 
 \section{Introduction}
