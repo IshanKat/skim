@@ -1,0 +1,7 @@
+[eval_ppo] loaded checkpoints/ppo_lambda01/ppo_ep002528.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=200  acc=0.7350  avg_frames=7.1
+  causal      : 0.7400 (100 questions)
+  descriptive : 0.8571 (28 questions)
+  temporal    : 0.6806 (72 questions)
+[eval_ppo] wrote results\ppo_lambda01_ep002528_n200.json

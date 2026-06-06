@@ -2,3 +2,4 @@
 [ppo] Loaded warm-start from checkpoints/ppo/ppo_ep000800.pt
 [ppo] policy params: 8,015,876
 [ppo] total_episodes=8000, rollout_batch=32
+[ppo] iter=  10  eps=   320  reward=+0.655  acc=75.00%  ret=94.12%  |pol=0.031  val=0.611  ent=0.186  kl=1.1921|  t=1108s

@@ -1,0 +1,4 @@
+
+[run_full_evals] Starting: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/lambda005.yaml --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt --dataset nextqa --output results/ppo_lambda005_ep1024_nextqa_full.json
+[eval_ppo] loaded checkpoints/ppo_lambda005/ppo_ep001024.pt
+[eval_ppo] policy params: 8,015,876

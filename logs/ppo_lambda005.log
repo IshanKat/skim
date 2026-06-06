@@ -1,0 +1,20 @@
+[ppo] Migrated scalar_proj weights: 3->2 inputs (dropped H_t column)
+[ppo] Loaded warm-start from checkpoints/ppo/ppo_ep000800.pt
+[ppo] policy params: 8,015,876
+[ppo] total_episodes=3000, rollout_batch=32
+[ppo] iter=  10  eps=   320  reward=+0.807  acc=84.38%  ret=69.57%  |pol=0.018  val=0.203  ent=0.341  kl=0.1682|  t=750s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep000512.pt
+[ppo] iter=  20  eps=   640  reward=+0.701  acc=71.88%  ret=33.44%  |pol=0.018  val=0.380  ent=0.343  kl=0.1606|  t=477s
+[ppo] iter=  30  eps=   960  reward=+0.869  acc=90.62%  ret=72.55%  |pol=0.050  val=0.287  ent=0.324  kl=0.3746|  t=877s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep001024.pt
+[ppo] iter=  40  eps=  1280  reward=+0.546  acc=56.25%  ret=30.24%  |pol=0.012  val=0.316  ent=0.356  kl=0.2607|  t=408s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep001504.pt
+[ppo] iter=  50  eps=  1600  reward=+0.788  acc=81.25%  ret=46.76%  |pol=0.077  val=0.389  ent=0.352  kl=0.2573|  t=586s
+[ppo] iter=  60  eps=  1920  reward=+0.714  acc=75.00%  ret=71.91%  |pol=0.038  val=0.271  ent=0.270  kl=0.2778|  t=946s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep002016.pt
+[ppo] iter=  70  eps=  2240  reward=+0.646  acc=68.75%  ret=81.18%  |pol=0.029  val=0.251  ent=0.211  kl=0.7173|  t=1284s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep002528.pt
+[ppo] iter=  80  eps=  2560  reward=+0.694  acc=71.88%  ret=45.90%  |pol=0.040  val=0.286  ent=0.316  kl=0.3685|  t=594s
+[ppo] iter=  90  eps=  2880  reward=+0.785  acc=81.25%  ret=49.94%  |pol=0.028  val=0.265  ent=0.396  kl=0.1841|  t=442s
+[ppo] Saved checkpoints\ppo_lambda005\ppo_ep003008.pt
+[ppo] Training done. Final weights -> checkpoints\ppo_lambda005\ppo_final.pt

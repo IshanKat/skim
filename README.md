@@ -1,179 +1,181 @@
-# Adaptive Frame Selection for Video QA via RL
+# SKIM: Streaming-Compatible Adaptive Frame Selection for Efficient Video QA via Reinforcement Learning
 
-**CS 291A — UCSB**
+**CS 291A — UCSB** | Ishan Katpally, Om Mahesh
 
-A lightweight reinforcement learning agent that learns to adaptively select which video frames to show a frozen Vision-Language Model (VLM), trading off answer accuracy against the number of frames used.
+A lightweight (8M-parameter) RL policy that scans a video frame by frame and decides — per frame — whether to **KEEP**, **SKIP**, or **STOP**, then passes only the kept subset to a frozen VLM queried once per question.
+
+Paper: [`paper/main.pdf`](paper/main.pdf)
 
 ---
 
-## Overview
+## Key Results
 
-Large VLMs can answer questions about videos by processing a sequence of frames. The naive approach feeds all frames to the model — expensive and often unnecessary, since many frames are redundant. This project trains a small transformer policy (8M parameters) to decide, frame by frame, whether to **KEEP**, **SKIP**, or **STOP** processing — with the goal of answering correctly while keeping as few frames as possible.
+**NExT-QA val (n=1,000)**
 
-The key design choice: the VLM is called **exactly once per episode**, only at the end, to produce the final answer and compute the training reward. The selector itself runs entirely on pre-cached visual embeddings — no VLM calls during frame selection at either train or eval time.
+| Method | Accuracy | Avg Frames | Causal | Temporal | Descriptive |
+|--------|----------|-----------|--------|----------|-------------|
+| Uniform-8 | 75.5% | 8.0 | 75.0% | 69.4% | 92.9% |
+| Uniform-16 | 76.0% | 15.7 | 76.0% | 70.8% | 89.3% |
+| Uniform-32 | 78.0% | 27.4 | 77.0% | 75.0% | 89.3% |
+| **SKIM λ=0.05** | **72.3%** | **14.2** | 74.6% | 63.5% | 82.8% |
+| SKIM λ=0.1 | 74.5% | 8.6 | 76.0% | 68.1% | 85.7% |
+| SKIM λ=0.2 | 58.5% | 1.5 | 57.0% | 54.2% | 75.0% |
+
+**IntentQA val — zero-shot transfer (n=2,044 full val)**
+
+| Method | Accuracy | Avg Frames | Causal | Temporal |
+|--------|----------|-----------|--------|----------|
+| Uniform-8 | 87.5% | 8.0 | 90.1% | 79.2% |
+| Uniform-16 | 88.0% | 15.8 | 89.5% | 83.3% |
+| Uniform-32 | 90.0% | 29.2 | 90.8% | 87.5% |
+| **SKIM λ=0.05** | **86.6%** | **15.7** | 88.0% | 82.3% |
 
 ---
 
 ## Method
 
-### MDP Formulation
+### MDP
 
-Each (video, question) pair is one episode:
+Each (video, question) pair is one episode. Frames sampled at 1 fps, capped at N≤32.
 
-- **State** at step t: `(query_embed, frame_embed_t, kept_set_mean_embed, t/N, |S|/N)`
-  - `query_embed`: mean-pooled token embeddings of the question text [D_text=2048]
-  - `frame_embed_t`: vision encoder output for the current frame [D_vis=1280]
-  - `kept_set_mean_embed`: mean of all kept frame embeddings so far [D_vis=1280]
-  - `t/N`: how far through the video (0→1)
-  - `|S|/N`: what fraction of frames have been kept so far (0→1)
+- **State**: `(query_embed, frame_embed_t, kept_set_mean, t/N, |S|/N)`
+- **Actions**: `KEEP` · `SKIP` · `STOP`
+- **Reward** (terminal only): `R = 1[correct] − λ·|S|/N`
 
-- **Actions**: `KEEP` (0), `SKIP` (1), `STOP` (2)
-  - KEEP: add this frame to the selected subset, advance to next frame
-  - SKIP: discard this frame, advance to next frame
-  - STOP: end selection early, go straight to the VLM answer call
-
-- **Reward**: sparse, terminal-only
-  ```
-  R = 1[correct] - λ · |S|/N
-  ```
-  The policy is rewarded for getting the right answer and penalized proportionally to how many frames it kept. λ=0.1 by default.
-
-- **Episode end**: STOP action, or forced stop at the last frame.
+The policy is strictly causal — state depends only on frames seen so far — making it streaming-compatible.
 
 ### Policy Architecture
 
-A small transformer with 4-token input:
+4-token transformer input → 2-layer encoder (d=512, 4 heads) → action head (3-way) + value head. ~8M parameters.
 
-```
-[query_token, frame_token, kept_set_token, scalar_token]
-       ↓             ↓              ↓              ↓
-   text_proj     vis_proj       vis_proj      scalar_proj
-       └─────────────┴──────────────┴──────────────┘
-                         2-layer Transformer
-                               ↓ mean pool
-                    ┌──────────┴──────────┐
-               action_head           value_head
-             (3-way logits)          (scalar)
-```
+### Backbone
 
-- All projections map to d_model=512
-- 2 transformer encoder layers, 4 attention heads, pre-norm
-- ~8M total parameters
-
-### Frozen Backbone
-
-[Qwen2.5-VL-3B-Instruct](https://huggingface.co/Qwen/Qwen2.5-VL-3B-Instruct), loaded in 4-bit NF4 quantization (~1GB VRAM on RTX 2070 8GB). Used for:
-1. **Pre-computing frame embeddings** (vision encoder only, done once and cached to disk)
-2. **Computing query embeddings** (LM embedding layer, fast)
-3. **Answering the question** (full forward pass, once per episode at terminal)
+Qwen2.5-VL-3B-Instruct in 4-bit NF4 quantization (~1 GB VRAM). Used for:
+1. Pre-computing frame embeddings (cached to disk once)
+2. Computing query embeddings
+3. Single full forward pass at episode termination to produce the answer
 
 ### Training
 
-**Warm-start (Phase 0):** Behavioral cloning — the policy is trained via cross-entropy to imitate uniform frame selection (keep every N/k-th frame). This gives the policy a reasonable starting point before RL and prevents early reward collapse.
-
-**PPO (Phase 1):** Standard PPO-clip with:
-- GAE advantage estimation (γ=1.0, λ_GAE=0.95)
-- KL penalty against the frozen warm-start reference policy
-- Entropy bonus on the action distribution to encourage exploration
-- AdamW, lr=3e-5, rollout batch=32, 4 PPO epochs per update
+1. **Warm-start** (behavioral cloning to uniform selection)
+2. **PPO-clip** with GAE (γ=1.0, λ_GAE=0.95), KL penalty against warm-start reference, entropy bonus
 
 ---
 
-## Dataset
+## Reproduction
 
-[NExT-QA](https://github.com/doc-doc/NExT-QA) — a video question answering benchmark with 5-way multiple choice questions across three question types:
-- **Causal**: why/how questions requiring causal reasoning
-- **Temporal**: questions about temporal order or change over time
-- **Descriptive**: what/where/who questions about visual content
+### Requirements
 
-Videos are sampled at 1 fps, capped at 32 frames per video.
+- Python 3.10+
+- CUDA GPU with ≥8 GB VRAM (tested on RTX 2070)
+- PyTorch 2.x
 
----
+```bash
+pip install -e .
+```
 
-## Baselines
+### Data
 
-| Method      | Description                                    |
-|-------------|------------------------------------------------|
-| Uniform-8   | Evenly sample 8 frames, feed all to VLM        |
-| Uniform-16  | Evenly sample 16 frames, feed all to VLM       |
-| Uniform-32  | Evenly sample 32 frames, feed all to VLM       |
-| PPO (ours)  | Adaptive selection: sees 32, selects a subset  |
+**NExT-QA**: Download videos and annotations from the [official repo](https://github.com/doc-doc/NExT-QA). Place under `data/nextqa/` with structure:
+```
+data/nextqa/
+  map_vid_vidorID.json
+  val.csv
+  videos/   # .mp4 files
+```
 
----
+**IntentQA** (optional, zero-shot transfer only): Download from the [official repo](https://github.com/JoseponLee/IntentQA). Place under `data/intentqa/`:
+```
+data/intentqa/
+  map_vid_vidorID.json
+  val.csv
+  videos/   # .mp4 files
+```
 
-## Results (n=200 NExT-QA val)
+### Step-by-step
 
-| Method        | Accuracy | Avg Frames | Causal | Temporal | Descriptive |
-|---------------|----------|-----------|--------|----------|-------------|
-| Uniform-8     | 75.5%    | 8.0       | 75.0%  | 69.4%    | 92.9%       |
-| Uniform-16    | 76.0%    | 15.7      | 76.0%  | 70.8%    | 89.3%       |
-| Uniform-32    | 78.0%    | 27.4      | 77.0%  | 75.0%    | 89.3%       |
-| PPO ep800     | **74.0%**| **13.3**  | 74.0%  | 69.4%    | 85.7%       |
+```bash
+# 1. Pre-compute and cache frame embeddings (one-time, several hours)
+python scripts/precompute_embeddings.py --config configs/default.yaml
 
-The best PPO checkpoint (800 training episodes, λ=0.1) selects 13.3 frames on average — fewer than Uniform-16 while matching Uniform-8 accuracy. Unlike uniform subsampling, the policy is content-aware: it decides frame-by-frame based on visual relevance to the query.
+# For IntentQA (optional):
+python scripts/precompute_embeddings.py --config configs/default.yaml \
+    --dataset intentqa --data-root data/intentqa
 
-**Over-training effect**: Continuing PPO with λ=0.2 caused the policy to collapse toward extreme pruning (1.5–3 frames) with significantly degraded accuracy (58–68%), confirming that the cost coefficient λ is a critical hyperparameter.
+# 2. Uniform baselines
+python scripts/eval_full_frame.py --max-frames 8  --output results/uniform8_nextqa.json
+python scripts/eval_full_frame.py --max-frames 16 --output results/uniform16_nextqa.json
+python scripts/eval_full_frame.py --max-frames 32 --output results/uniform32_nextqa.json
+
+# 3. Warm-start (behavioral cloning)
+python scripts/train_warmstart.py --config configs/default.yaml \
+    --output checkpoints/warmstart.pt
+
+# 4. PPO training
+#    λ=0.05 (best accuracy-frames tradeoff):
+python scripts/train_ppo.py --config configs/lambda005.yaml \
+    --warmstart checkpoints/warmstart.pt \
+    --output-dir checkpoints/ppo_lambda005
+
+#    λ=0.1:
+python scripts/train_ppo.py --config configs/default.yaml \
+    --warmstart checkpoints/warmstart.pt \
+    --output-dir checkpoints/ppo_lambda01
+
+# 5. Evaluate on NExT-QA (n=1000)
+python scripts/eval_ppo.py \
+    --config configs/lambda005.yaml \
+    --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt \
+    --dataset nextqa --limit 1000 \
+    --output results/ppo_lambda005_ep1024_nextqa_n1000.json
+
+# 6. Zero-shot transfer to IntentQA (full val)
+python scripts/eval_ppo.py \
+    --config configs/lambda005.yaml \
+    --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt \
+    --dataset intentqa --data-root data/intentqa \
+    --output results/ppo_lambda005_ep1024_intentqa_full.json
+```
+
+### Configs
+
+| Config | λ | Episodes |
+|--------|---|----------|
+| `configs/default.yaml` | 0.1 | 3000 |
+| `configs/lambda005.yaml` | 0.05 | 3000 |
+
+Increase `lambda_cost` to 0.2 to reproduce the reward-hacking experiment.
+
+### Analysis scripts
+
+```bash
+# Per-checkpoint accuracy and frame counts across all result JSONs
+python scripts/analyze_all_ckpts.py
+
+# STOP action analysis by question type
+python scripts/analyze_stop_all.py
+```
 
 ---
 
 ## Project Structure
 
 ```
-├── configs/
-│   └── default.yaml               # All hyperparameters
-├── scripts/
-│   ├── precompute_embeddings.py   # Phase 1: cache frame embeddings
-│   ├── eval_full_frame.py         # Phase 2: uniform baseline eval
-│   ├── train_warmstart.py         # Phase 3: behavioral cloning warm-start
-│   ├── train_ppo.py               # Phase 4: PPO training
-│   ├── eval_ppo.py                # Phase 5: evaluate trained policy
-│   └── analyze_results.py         # Offline figure generation
-├── src/afs/
-│   ├── data/nextqa.py             # NExT-QA dataset loader
-│   ├── env/video_qa_env.py        # Gym-style MDP environment
-│   ├── selector/policy.py         # Transformer selector policy
-│   ├── training/
-│   │   ├── warm_start.py          # Behavioral cloning trainer
-│   │   ├── ppo.py                 # PPO trainer
-│   │   └── rollout.py             # Episode collection
-│   └── vlm/
-│       ├── qwen_wrapper.py        # Frozen VLM interface
-│       ├── cache.py               # On-disk embedding cache
-│       └── frames.py              # Video frame extraction
-├── slides/
-│   └── midterm_outline.md         # Presentation outline
-└── results/                       # Eval output JSONs and figures
-```
-
----
-
-## Setup
-
-```bash
-pip install -e .
-```
-
-Requires CUDA GPU with ≥8GB VRAM. Tested on RTX 2070 8GB with Python 3.10 and PyTorch 2.x.
-
-## Running
-
-```bash
-# 1. Pre-compute and cache frame embeddings (one-time, ~hours)
-python scripts/precompute_embeddings.py --config configs/default.yaml
-
-# 2. Run uniform baselines
-python scripts/eval_full_frame.py --max-frames 8  --output results/uniform_8.json
-python scripts/eval_full_frame.py --max-frames 32 --output results/uniform_32.json
-
-# 3. Warm-start the policy
-python scripts/train_warmstart.py --config configs/default.yaml --output checkpoints/warmstart.pt
-
-# 4. PPO training (resumes from warmstart or existing checkpoint)
-python scripts/train_ppo.py --warmstart checkpoints/warmstart.pt --output-dir checkpoints/ppo
-
-# 5. Evaluate
-python scripts/eval_ppo.py --checkpoint checkpoints/ppo/ppo_final.pt --output results/ppo_val.json
-
-# 6. Generate figures
-python scripts/analyze_results.py
+configs/          # Hyperparameter configs (lambda005.yaml, default.yaml)
+scripts/
+  precompute_embeddings.py   # Cache frame + query embeddings to disk
+  train_warmstart.py         # Behavioral cloning warm-start
+  train_ppo.py               # PPO training
+  eval_ppo.py                # Policy evaluation (NExT-QA / IntentQA)
+  eval_full_frame.py         # Uniform baseline evaluation
+  analyze_all_ckpts.py       # Summary table across checkpoints
+  analyze_stop_all.py        # STOP action analysis by question type
+src/afs/
+  data/                      # Dataset loaders (NExT-QA, IntentQA, EgoSchema)
+  env/video_qa_env.py        # MDP environment
+  selector/policy.py         # Transformer policy + value head
+  training/                  # PPO trainer, warm-start trainer, rollout collector
+  vlm/                       # Qwen wrapper, embedding cache, frame extraction
+results/                     # Eval output JSONs and figures
+paper/                       # NeurIPS-style paper source (main.tex → main.pdf)
 ```

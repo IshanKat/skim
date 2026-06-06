@@ -1,0 +1,19 @@
+
+[run_full_evals] Starting: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/lambda005.yaml --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt --dataset nextqa --limit 1000 --output results/ppo_lambda005_ep1024_nextqa_n1000.json
+[eval_ppo] loaded checkpoints/ppo_lambda005/ppo_ep001024.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=1000  acc=0.7230  avg_frames=14.2
+  causal      : 0.7458 (531 questions)
+  descriptive : 0.8278 (151 questions)
+  temporal    : 0.6352 (318 questions)
+[eval_ppo] wrote results\ppo_lambda005_ep1024_nextqa_n1000.json
+
+[run_full_evals] Starting: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/lambda005.yaml --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt --dataset intentqa --data-root data/intentqa --limit 1000 --output results/ppo_lambda005_ep1024_intentqa_n1000.json
+[eval_ppo] loaded checkpoints/ppo_lambda005/ppo_ep001024.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=1000  acc=0.8810  avg_frames=16.1
+  causal      : 0.8990 (723 questions)
+  temporal    : 0.8339 (277 questions)
+[eval_ppo] wrote results\ppo_lambda005_ep1024_intentqa_n1000.json
+
+[run_full_evals] All done.

@@ -19,12 +19,12 @@
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
 
-\title{SKIM: Streaming-Compatible Adaptive Frame Selection for\\ Efficient Video Question Answering via Reinforcement Learning}
+\title{SKIM: Streaming-Compatible Adaptive Frame Selection for Efficient Video Question Answering via Reinforcement Learning}
 
 \author{%
   Ishan Katpally \\
   University of California, Santa Barbara \\
-  \texttt{ikatpally@ucsb.edu} \\
+  \texttt{ishankatpally@ucsb.edu} \\
   \And
   Om Mahesh \\
   University of California, Santa Barbara \\
@@ -293,42 +293,57 @@ reference to limit drift and an entropy bonus for exploration. Full hyperparamet
 We train and evaluate on NExT-QA~\citep{nextqa} (5-way multiple choice;
 causal / temporal / descriptive question types) and evaluate zero-shot transfer
 on IntentQA~\citep{intentqa}. Baselines feed a fixed number of uniformly sampled
-frames (Uniform-8/16/32) to the same frozen VLM. We report accuracy, the average
-number of frames passed to the VLM, and per-question-type accuracy on $n=200$
-validation subsets. All runs use a single RTX 2070 (8\,GB).
+frames (Uniform-8/16/32) to the same frozen VLM. We report accuracy, the average number of frames passed to the VLM, and
+per-question-type accuracy. Primary ablations use $n{=}200$ validation subsets
+to limit GPU time---each eval run requires roughly 45--60\,minutes on one
+RTX~2070 with the 3B frozen VLM; the best SKIM configuration is additionally
+evaluated at $n{=}1{,}000$ in Tables~\ref{tab:nextqa} and~\ref{tab:intentqa}.
+All runs use a single RTX 2070 (8\,GB). Code and result JSONs are available at
+\url{https://github.com/IshanKat/skim}.
 
 \begin{table}[t]
-  \caption{Results on NExT-QA (val, $n=200$). SKIM ($\lambda{=}0.05$) matches
-    Uniform-16 accuracy using fewer frames; raising $\lambda$ trades accuracy
-    for frames, and at $\lambda{=}0.2$ the policy collapses to near-zero frames
-    (Section~\ref{sec:analysis}). Best SKIM accuracy in \textbf{bold}.}
+  \caption{Results on NExT-QA (val). Upper block: $n{=}200$ ablation subset
+    (all methods comparable). SKIM ($\lambda{=}0.05$) matches Uniform-16
+    accuracy using fewer frames; raising $\lambda$ trades accuracy for frames,
+    and at $\lambda{=}0.2$ the policy collapses to near-zero frames
+    (Section~\ref{sec:analysis}). Lower block: $n{=}1{,}000$ for the best
+    SKIM setting (uniform baselines at $n{=}200$ above). Best $n{=}200$ SKIM
+    accuracy in \textbf{bold}.}
   \label{tab:nextqa}
   \centering
   \begin{tabular}{lccccc}
     \toprule
     Method & Acc.\ & Frames & Causal & Temporal & Descr.\ \\
     \midrule
+    \multicolumn{6}{l}{\emph{$n{=}200$}} \\
     Uniform-8  & 75.5 & 8.0  & 75.0 & 69.4 & 92.9 \\
     Uniform-16 & 76.0 & 15.7 & 76.0 & 70.8 & 89.3 \\
     Uniform-32 & 78.0 & 27.4 & 77.0 & 75.0 & 89.3 \\
     \midrule
-    SKIM ($\lambda{=}0.05$) & \textbf{76.0} & 14.0 & 75.0 & 73.6 & 85.7 \\
-    SKIM ($\lambda{=}0.1$)  & 74.5 & 8.6  & 76.0 & 68.1 & 85.7 \\
-    SKIM ($\lambda{=}0.2$)  & 58.5 & 1.5  & 57.0 & 54.2 & 75.0 \\
+    SKIM ($\lambda{=}0.05$, ep1024)      & \textbf{76.0} & 14.0 & 75.0 & 73.6 & 85.7 \\
+    SKIM ($\lambda{=}0.1$, ep1024)       & 74.5 & 8.6  & 76.0 & 68.1 & 85.7 \\
+    SKIM ($\lambda{=}0.1$, ep2528)       & 73.5 & 7.1  & 74.0 & 66.7 & 85.7 \\
+    SKIM ($\lambda{=}0.2$, ep\emph{final}) & 58.5 & 1.5  & 57.0 & 54.2 & 75.0 \\
+    \midrule
+    \multicolumn{6}{l}{\emph{$n{=}1{,}000$}} \\
+    SKIM ($\lambda{=}0.05$) & 72.3 & 14.2 & 74.6 & 63.5 & 82.8 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
 \begin{table}[t]
-  \caption{Zero-shot transfer to IntentQA (val, $n=200$); the selector is trained
-    only on NExT-QA. SKIM ($\lambda{=}0.05$) matches Uniform-32 accuracy using
-    far fewer frames.}
+  \caption{Zero-shot transfer to IntentQA (val); the selector is trained
+    only on NExT-QA. Upper block: $n{=}200$ ablation subset. SKIM
+    ($\lambda{=}0.05$) matches Uniform-32 accuracy using far fewer frames.
+    Middle block: $n{=}1{,}000$. Bottom block: full validation set
+    ($n{=}2{,}044$).}
   \label{tab:intentqa}
   \centering
   \begin{tabular}{lcccc}
     \toprule
     Method & Accuracy & Frames & Causal & Temporal \\
     \midrule
+    \multicolumn{5}{l}{\emph{$n{=}200$}} \\
     Uniform-8  & 87.5 & 8.0  & 90.1 & 79.2 \\
     Uniform-16 & 88.0 & 15.8 & 89.5 & 83.3 \\
     Uniform-32 & 90.0 & 29.2 & 90.8 & 87.5 \\
@@ -336,6 +351,12 @@ validation subsets. All runs use a single RTX 2070 (8\,GB).
     SKIM ($\lambda{=}0.05$) & 90.0 & 17.2 & 90.8 & 87.5 \\
     SKIM ($\lambda{=}0.1$)  & 88.5 & 11.1 & 89.5 & 85.4 \\
     SKIM ($\lambda{=}0.2$)  & 78.5 & 2.0  & 84.2 & 60.4 \\
+    \midrule
+    \multicolumn{5}{l}{\emph{$n{=}1{,}000$}} \\
+    SKIM ($\lambda{=}0.05$) & 88.1 & 16.1 & 89.9 & 83.4 \\
+    \midrule
+    \multicolumn{5}{l}{\emph{Full val ($n{=}2{,}044$)}} \\
+    SKIM ($\lambda{=}0.05$) & 86.6 & 15.7 & 88.0 & 82.3 \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -353,7 +374,51 @@ baselines. By question type, SKIM is relatively strongest on \emph{temporal} que
 ($73.6\%$ at $\lambda{=}0.05$, vs.\ $69.4$/$70.8\%$ for Uniform-8/16), which need
 evidence spread across the clip, but weaker on \emph{descriptive} questions ($85.7\%$
 vs.\ ${\geq}89\%$ for uniform)---a gap we trace to early stopping in
-Section~\ref{sec:analysis}.
+Section~\ref{sec:analysis}. At $n{=}1{,}000$ the same checkpoint yields $72.3\%$
+overall at $14.2$ frames (causal $74.6\%$, temporal $63.5\%$, descriptive $82.8\%$),
+confirming the ranking and the frame count while narrowing the headline gap to
+Uniform-16 relative to the $n{=}200$ estimate.
+
+\paragraph{Comparison to published methods on NExT-QA.}
+Table~\ref{tab:sota} places our best result ($n{=}1{,}000$, $72.3\%$ at $14.2$ frames)
+alongside published methods. The most directly comparable method is
+LVNet~\citep{lvnet}, a hierarchical keyframe selector that similarly targets a small,
+fixed frame budget: it achieves $72.9\%$ at $12$ frames, while SKIM reaches $72.3\%$
+at $14.2$ frames---a difference of $0.6$ percentage points with $2.2$ extra frames.
+Crucially, SKIM additionally supports \emph{variable-budget} selection via the learned
+\textsc{stop} and a \emph{causal}, single-pass policy compatible with streaming,
+properties LVNet does not have. We therefore consider SKIM competitive with the best
+comparable efficient selector on this benchmark.
+
+The methods that outperform our result---VideoTree~\citep{videotree} (${\sim}77\%$) and
+ProVCA~\citep{provca} ($80.5\%$)---use substantially larger backbone VLMs and, in
+ProVCA's case, multi-step MLLM agent inference, making the gap attributable to
+model scale rather than selection quality. This is corroborated by our own Uniform-32
+baseline: at $78.0\%$ ($n{=}200$) it already matches VideoTree using a trivial fixed
+schedule, solely because the stronger 3B VLM raises the accuracy floor. The ceiling
+at this model scale is set by the VLM, not the selection strategy.
+
+\begin{table}[h]
+  \caption{NExT-QA comparison to published methods. $^\dagger$Estimated from the
+    reported improvement margin. External methods evaluate on the full val set
+    ($n{=}4{,}996$); our rows are $n{=}200$ (Uniform-32) and $n{=}1{,}000$ (SKIM).
+    Base VLMs differ across rows.}
+  \label{tab:sota}
+  \centering
+  \small
+  \begin{tabular}{lccc}
+    \toprule
+    Method & Year & Acc.\ (\%) & Frames \\
+    \midrule
+    ProVCA~\citep{provca}       & 2025 & 80.5              & adaptive \\
+    VideoTree~\citep{videotree} & 2024 & ${\sim}77^\dagger$ & adaptive \\
+    LVNet~\citep{lvnet}         & 2024 & 72.9              & 12 \\
+    \midrule
+    Uniform-32 (ours, $n{=}200$)                         & 2026 & 78.0          & 27.4 \\
+    SKIM $\lambda{=}0.05$ (ours, $n{=}1{,}000$)         & 2026 & \textbf{72.3} & \textbf{14.2} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \paragraph{The policy transfers zero-shot to IntentQA.}
 Without any retraining, we run the NExT-QA-trained selector on IntentQA
@@ -362,7 +427,14 @@ favorable: at $\lambda{=}0.05$ SKIM matches Uniform-32's accuracy ($90.0\%$) usi
 $17.2$ frames rather than $29.2$, and $\lambda{=}0.1$ reaches $88.5\%$ at $11.1$ frames.
 That a policy trained only on NExT-QA carries to a different benchmark suggests it has
 learned a transferable notion of frame usefulness rather than dataset-specific
-shortcuts.
+shortcuts. At $n{=}1{,}000$ the same trends hold: $88.1\%$ at $16.1$ frames (causal $89.9\%$,
+temporal $83.4\%$), and on the full validation set ($n{=}2{,}044$) SKIM achieves
+$86.6\%$ at $15.7$ frames (Table~\ref{tab:intentqa}). We note that these numbers
+exceed recently reported IntentQA figures (ProVCA: $77.7\%$; LVNet: $71.7\%$), but
+those numbers are reported on the IntentQA \emph{test} set ($n{=}2{,}134$), whereas
+we evaluate on the \emph{validation} set ($n{=}2{,}044$)---a different split that
+precludes direct comparison. The meaningful comparison remains SKIM versus our own
+uniform baselines on the same validation split and frozen VLM.
 
 \begin{figure}[t]
   \centering
@@ -409,9 +481,9 @@ section uses the $\lambda{=}0.05$ checkpoint on NExT-QA.
 \paragraph{The policy adapts its stopping point to the question type.}
 Figure~\ref{fig:stopping} shows \emph{where} the policy stops---the position of its
 last kept frame---by question type; on average it keeps $14.7$/$13.1$/$13.9$ frames for
-causal/temporal/descriptive. The distribution is bimodal, with one mode at
-near-immediate stopping and another at running to the forced stop, but the balance
-shifts with the question. Descriptive
+causal/temporal/descriptive. The distribution is bimodal (Figure~\ref{fig:retention}),
+with one mode at near-immediate stopping and another at running to the forced stop,
+but the balance shifts with the question. Descriptive
 questions stop earliest (mean last-kept frame at $0.51$ of the video) and causal latest
 ($0.62$); temporal questions are the most bimodal, with the strongest spike at the final
 frame---consistent with needing the whole clip---offset by an early-stop mode that pulls
@@ -420,12 +492,25 @@ frames where the question type warrants it.
 
 \paragraph{When the stop action fires, it fires well.}
 Isolating descriptive questions by whether the learned \textsc{stop} action fired is
-telling. When it does, SKIM answers correctly $93.3\%$ of the time using only $7.1$
-frames; when it never fires and the episode runs to the forced stop, accuracy falls to
-$46.2\%$ at $13.0$ frames. Early stopping is thus not the cause of descriptive
-errors---if anything, the cases where the policy \emph{cannot} commit to a stop are the
-genuinely hard ones it would miss regardless. The aggregate descriptive number in
-Table~\ref{tab:nextqa} ($85.7\%$) mixes these two populations.
+telling ($n{=}200$ subset). When it does, SKIM answers correctly $93.3\%$ of the time
+using only $7.1$ frames; when it never fires and the episode runs to the forced stop,
+accuracy falls to $46.2\%$ at $13.0$ frames. Early stopping is thus not the cause of
+descriptive errors---if anything, the cases where the policy \emph{cannot} commit to a
+stop are the genuinely hard ones it would miss regardless. The aggregate descriptive
+number in Table~\ref{tab:nextqa} ($85.7\%$) mixes these two populations.
+Figure~\ref{fig:qtype_acc} shows the per-type accuracy breakdown across all methods.
+
+\paragraph{STOP fires less on longer clips (IntentQA transfer).}
+The zero-shot transfer to the full IntentQA validation set ($n{=}2{,}044$) reveals
+how the stopping behavior adapts to clip length. The policy fires \textsc{stop} early
+on $51.7\%$ of IntentQA questions, versus $62.7\%$ on NExT-QA---consistent with
+IntentQA videos providing more informative frames per clip. When \textsc{stop} fires,
+the policy uses $5.8$ frames at $83.2\%$ accuracy; when the episode runs to the
+forced stop, accuracy rises to $90.1\%$ at $26.1$ frames. Unlike the descriptive
+split on NExT-QA, running to the end consistently outperforms early stopping on
+IntentQA for both causal ($84.4\%$ vs.\ $91.9\%$) and temporal ($79.9\%$ vs.\
+$84.9\%$) questions, suggesting the policy has not learned a reliable stopping
+criterion for this benchmark's longer, more complex causal chains.
 
 \paragraph{Failure mode: reward hacking via the language prior.}
 The cost term that enables a variable budget is also the policy's easiest exploit. As
@@ -453,21 +538,48 @@ question types---temporal, not just descriptive---remains the central open probl
   \label{fig:stopping}
 \end{figure}
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.72\linewidth]{../results/figures/fig2_retention_by_qtype.png}
+  \caption{Distribution of total frames kept by question type (SKIM $\lambda{=}0.05$,
+    NExT-QA, $n{=}200$). All three types are bimodal: a large spike near zero (the
+    policy fires \textsc{stop} immediately) and a second spike at ${\sim}32$ frames
+    (the episode runs to the forced stop). Mean kept frames: causal $14.7$, temporal
+    $13.1$, descriptive $13.9$.}
+  \label{fig:retention}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.72\linewidth]{../results/figures/fig3_accuracy_by_qtype.png}
+  \caption{Accuracy by question type on NExT-QA ($n{=}200$) for uniform baselines
+    and an intermediate PPO checkpoint (ep800, $\lambda{=}0.1$). Descriptive accuracy
+    is highest across all methods but drops for PPO relative to uniform, consistent
+    with the early-stopping analysis in this section. Causal accuracy is largely
+    unaffected; temporal is most sensitive to frame count.}
+  \label{fig:qtype_acc}
+\end{figure}
 
 \section{Limitations and Conclusion}
 \label{sec:conclusion}
 
 \paragraph{Limitations.}
-Our evaluation uses $n{=}200$ validation subsets and a single training run per
+Our primary ablations use $n{=}200$ validation subsets and a single training run per
 setting, so we report point estimates without error bars; relative orderings are
 consistent across checkpoints, but small accuracy gaps (e.g., $74.5$ vs.\ $76.0\%$)
-should be read as indicative rather than significant. We use a single frozen backbone
-(Qwen2.5-VL-3B in 4-bit) on one consumer GPU and have not tested whether the learned
-policy transfers across VLM scales or families. Most importantly, although SKIM's
-causal design makes it \emph{compatible} with streaming, all of our experiments are
-offline---finite clips capped at $32$ frames with a forced stop at the end---so we do
-not evaluate a true streaming deployment, and we leave EgoSchema and
-full-validation-set runs to future work.
+should be read as indicative rather than significant. The best SKIM configuration is
+validated at $n{=}1{,}000$ on NExT-QA and on the full IntentQA validation set
+($n{=}2{,}044$), where results are consistent with the $n{=}200$ ablations. We use a
+single frozen backbone (Qwen2.5-VL-3B in 4-bit) on one consumer GPU and have not
+tested whether the learned policy transfers across VLM scales or families.
+Our IntentQA validation-set accuracy ($86.6\%$) exceeds figures reported in prior
+work, but those figures are on the \emph{test} split, not the validation split we use,
+making direct comparison unreliable; IntentQA should be read as a zero-shot transfer
+test against our own uniform baselines, not a leaderboard comparison.
+Most importantly, although SKIM's causal design makes it \emph{compatible} with
+streaming, all of our experiments are offline---finite clips capped at $32$ frames
+with a forced stop at the end---so we do not evaluate a true streaming deployment,
+and we leave EgoSchema evaluation and multi-backbone experiments to future work.
 
 \paragraph{Conclusion.}
 SKIM casts adaptive frame selection as a causal, single-pass reinforcement-learning

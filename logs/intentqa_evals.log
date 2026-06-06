@@ -1,0 +1,54 @@
+[run_evals] Waiting for precompute PID 11532 to finish...
+[run_evals] Precompute done.
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_full_frame.py --dataset intentqa --data-root data/intentqa --max-frames 8 --limit 200 --output results/uniform8_intentqa.json
+[DONE] n=200 acc=0.8750 avg_frames=8.0
+  causal      : 0.9013 (152 questions)
+  temporal    : 0.7917 (48 questions)
+[DONE] wrote results\uniform8_intentqa.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_full_frame.py --dataset intentqa --data-root data/intentqa --max-frames 16 --limit 200 --output results/uniform16_intentqa.json
+[DONE] n=200 acc=0.8800 avg_frames=15.8
+  causal      : 0.8947 (152 questions)
+  temporal    : 0.8333 (48 questions)
+[DONE] wrote results\uniform16_intentqa.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_full_frame.py --dataset intentqa --data-root data/intentqa --max-frames 32 --limit 200 --output results/uniform32_intentqa.json
+[DONE] n=200 acc=0.9000 avg_frames=29.2
+  causal      : 0.9079 (152 questions)
+  temporal    : 0.8750 (48 questions)
+[DONE] wrote results\uniform32_intentqa.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/lambda005.yaml --checkpoint checkpoints/ppo_lambda005/ppo_ep001024.pt --dataset intentqa --data-root data/intentqa --limit 200 --output results/ppo_lambda005_ep1024_intentqa.json
+[eval_ppo] loaded checkpoints/ppo_lambda005/ppo_ep001024.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=200  acc=0.9000  avg_frames=17.2
+  causal      : 0.9079 (152 questions)
+  temporal    : 0.8750 (48 questions)
+[eval_ppo] wrote results\ppo_lambda005_ep1024_intentqa.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/lambda005.yaml --checkpoint checkpoints/ppo_lambda005/ppo_final.pt --dataset intentqa --data-root data/intentqa --limit 200 --output results/ppo_lambda005_final_intentqa_n200.json
+[eval_ppo] loaded checkpoints/ppo_lambda005/ppo_final.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=200  acc=0.8500  avg_frames=14.2
+  causal      : 0.8487 (152 questions)
+  temporal    : 0.8542 (48 questions)
+[eval_ppo] wrote results\ppo_lambda005_final_intentqa_n200.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/default.yaml --checkpoint checkpoints/ppo_lambda01/ppo_ep001024.pt --dataset intentqa --data-root data/intentqa --limit 200 --output results/ppo_lambda01_ep1024_intentqa.json
+[eval_ppo] loaded checkpoints/ppo_lambda01/ppo_ep001024.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=200  acc=0.8850  avg_frames=11.1
+  causal      : 0.8947 (152 questions)
+  temporal    : 0.8542 (48 questions)
+[eval_ppo] wrote results\ppo_lambda01_ep1024_intentqa.json
+
+[run_evals] Running: C:\Users\ishan\OneDrive\Documents\GitHub\cs-291a-project\.venv\Scripts\python.exe -u scripts/eval_ppo.py --config configs/default.yaml --checkpoint checkpoints/ppo_lambda01/ppo_ep002528.pt --dataset intentqa --data-root data/intentqa --limit 200 --output results/ppo_lambda01_ep2528_intentqa.json
+[eval_ppo] loaded checkpoints/ppo_lambda01/ppo_ep002528.pt
+[eval_ppo] policy params: 8,015,876
+[eval_ppo] n=200  acc=0.8750  avg_frames=8.1
+  causal      : 0.8816 (152 questions)
+  temporal    : 0.8542 (48 questions)
+[eval_ppo] wrote results\ppo_lambda01_ep2528_intentqa.json
+
+[run_evals] All IntentQA evals complete.
